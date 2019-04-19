@@ -56,13 +56,13 @@ public class Snake extends JFrame {
 class Board extends JPanel implements ActionListener {
 
 	private final int DOT_SIZE = 10;
-	private final int WIDTH = 50 * DOT_SIZE, 
-					  HEIGHT = 50 * DOT_SIZE;
+	private final int WIDTH = 50, 
+					  HEIGHT = 50;
 	private final int DEFAULT_DELAY = 180;
 	private final int FAST_DELAY = 1;
 	private int currentDelay = DEFAULT_DELAY;
 	private final int STARTING_SNAKE_LENGTH = 4;
-	private final int STARTING_COORD = 5 * DOT_SIZE;
+	private final int STARTING_COORD = 5;
 	private List<Coordinate> snake = new ArrayList<>();
 	private boolean maintainColours = false;
 	private List<Color> snakeColors = new ArrayList<>();
@@ -84,7 +84,7 @@ class Board extends JPanel implements ActionListener {
 		addKeyListener(new SnakeKeyInputAdapter());
 		setBackground(Color.BLACK);
 		setFocusable(true);
-		setPreferredSize(new Dimension(WIDTH, HEIGHT));
+		setPreferredSize(new Dimension(WIDTH * DOT_SIZE, HEIGHT * DOT_SIZE));
 		initGame();
 	}
 
@@ -93,7 +93,7 @@ class Board extends JPanel implements ActionListener {
 		snake = new ArrayList<Coordinate>();
 		snakeColors = new ArrayList<Color>();
 		for (int i = 0; i <= STARTING_SNAKE_LENGTH; i++) {
-			snake.add(new Coordinate(STARTING_COORD - i * DOT_SIZE, STARTING_COORD));
+			snake.add(new Coordinate(STARTING_COORD - i, STARTING_COORD));
 			snakeColors.add(randomColour());				
 		}
 
@@ -118,7 +118,7 @@ class Board extends JPanel implements ActionListener {
 			showMessage(g, "Welcome to Snek! Press Space to play");
 		} else {
 			g.setColor(maintainColours ? currentFoodColour : defaultFoodColour);				
-			g.fillRect(foodCoordinate.x, foodCoordinate.y, DOT_SIZE, DOT_SIZE);
+			g.fillRect(foodCoordinate.x * DOT_SIZE, foodCoordinate.y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
 
 			for (int i = snake.size() - 1; i >= 0; i--) {
 				//head
@@ -128,7 +128,7 @@ class Board extends JPanel implements ActionListener {
 				} else {
 					g.setColor(maintainColours ? snakeColors.get(i) : bodyColour);						
 				}
-				g.fillRect(snake.get(i).x, snake.get(i).y, DOT_SIZE, DOT_SIZE);
+				g.fillRect(snake.get(i).x * DOT_SIZE, snake.get(i).y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
 			}
 
 			if (gameState == GameState.BFS) {
@@ -149,7 +149,7 @@ class Board extends JPanel implements ActionListener {
 		Font small = new Font("Helvetica", Font.BOLD, 14);
 		g.setColor(Color.white);
 		g.setFont(small);
-		g.drawString(msg, (WIDTH - getFontMetrics(small).stringWidth(msg)) / 2, HEIGHT / 3);
+		g.drawString(msg, (WIDTH * DOT_SIZE - getFontMetrics(small).stringWidth(msg)) / 2, HEIGHT * DOT_SIZE / 3);
 	}
 	
 	private void showType(Graphics g, String msg) {
@@ -171,19 +171,19 @@ class Board extends JPanel implements ActionListener {
 		Coordinate head = snake.get(0);
 		switch (currentDirection) {
 		case LEFT:
-			head = new Coordinate(head.x - DOT_SIZE, head.y);
+			head = new Coordinate(head.x - 1, head.y);
 			break;
 			
 		case RIGHT:
-			head = new Coordinate(head.x + DOT_SIZE, head.y);
+			head = new Coordinate(head.x + 1, head.y);
 			break;
 			
 		case UP:
-			head = new Coordinate(head.x, head.y - DOT_SIZE);
+			head = new Coordinate(head.x, head.y - 1);
 			break;
 			
 		case DOWN:
-			head = new Coordinate(head.x, head.y + DOT_SIZE);
+			head = new Coordinate(head.x, head.y + 1);
 			break;
 		}
 		
@@ -227,8 +227,8 @@ class Board extends JPanel implements ActionListener {
 	private void relocateApple() {
 		currentFoodColour = randomColour();
 		foodCoordinate = new Coordinate(
-				random.nextInt(WIDTH / DOT_SIZE) * DOT_SIZE,
-				random.nextInt(HEIGHT / DOT_SIZE) * DOT_SIZE);
+				random.nextInt(WIDTH),
+				random.nextInt(HEIGHT));
 		if (snake.contains(foodCoordinate)) {
 			relocateApple();
 		}
@@ -395,20 +395,20 @@ class Board extends JPanel implements ActionListener {
 		Set<Coordinate> neighborCoordinates = new HashSet<Coordinate>();
 		  
 		//up
-		  if (y + DOT_SIZE < HEIGHT) {
-			  neighborCoordinates.add(new Coordinate(x, y + DOT_SIZE));
+		  if (y + 1 < HEIGHT) {
+			  neighborCoordinates.add(new Coordinate(x, y + 1));
 		  }
 		//down
-		  if (y - DOT_SIZE >= 0) {
-			  neighborCoordinates.add(new Coordinate(x, y - DOT_SIZE));
+		  if (y - 1 >= 0) {
+			  neighborCoordinates.add(new Coordinate(x, y - 1));
 		  }
 		//left
-		  if (x - DOT_SIZE >= 0) {
-			  neighborCoordinates.add(new Coordinate(x - DOT_SIZE, y));
+		  if (x - 1 >= 0) {
+			  neighborCoordinates.add(new Coordinate(x - 1, y));
 		  }
 		//right
-		  if (x + DOT_SIZE < WIDTH) {
-			  neighborCoordinates.add(new Coordinate(x + DOT_SIZE, y));
+		  if (x + 1 < WIDTH) {
+			  neighborCoordinates.add(new Coordinate(x + 1, y));
 		  }
 		  
 		  if (gameState == GameState.BFS) {
@@ -418,7 +418,7 @@ class Board extends JPanel implements ActionListener {
 			  while (iterator.hasNext()) {
 				  Coordinate coordinate = iterator.next();
 				  if (snake.contains(coordinate)) {
-					  int distanceFromSnakeTail = distanceFromSnakeTail(coordinate) * DOT_SIZE;
+					  int distanceFromSnakeTail = distanceFromSnakeTail(coordinate);
 					  int manhattanDistance = manhattanDistance(snake.get(0), coordinate);
 					  if (manhattanDistance < distanceFromSnakeTail) {
 						  iterator.remove();
