@@ -9,7 +9,6 @@ import static java.awt.event.KeyEvent.VK_UP;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -31,6 +30,7 @@ import javax.swing.JPanel;
 import javax.swing.Timer;
 
 
+@SuppressWarnings("serial")
 public class Snake extends JFrame {
 
 	public Snake() {
@@ -53,6 +53,7 @@ public class Snake extends JFrame {
 
 }
 
+@SuppressWarnings("serial")
 class Board extends JPanel implements ActionListener {
 
 	private final int DOT_SIZE = 10;
@@ -64,9 +65,10 @@ class Board extends JPanel implements ActionListener {
 	private final int STARTING_SNAKE_LENGTH = 4;
 	private final int STARTING_COORD = 5;
 	private List<Coordinate> snake = new ArrayList<>();
-	private boolean maintainColours = false;
+	private boolean colourfulMode = false;
 	private List<Color> snakeColors = new ArrayList<>();
 	private GameState gameState = GameState.INIT;
+	private Pathfinding pathfinding = Pathfinding.MANUAL;
 	private final Random random = new Random();
 	private Timer timer;
 	private final Color headColour = Color.WHITE, 
@@ -117,7 +119,7 @@ class Board extends JPanel implements ActionListener {
 		if (gameState == GameState.INIT) {
 			showMessage(g, "Welcome to Snek! Press Space to play");
 		} else {
-			g.setColor(maintainColours ? currentFoodColour : defaultFoodColour);				
+			g.setColor(colourfulMode ? currentFoodColour : defaultFoodColour);				
 			g.fillRect(foodCoordinate.x * DOT_SIZE, foodCoordinate.y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
 
 			for (int i = snake.size() - 1; i >= 0; i--) {
@@ -126,19 +128,20 @@ class Board extends JPanel implements ActionListener {
 					g.setColor(headColour);
 				//body
 				} else {
-					g.setColor(maintainColours ? snakeColors.get(i) : bodyColour);						
+					g.setColor(colourfulMode ? snakeColors.get(i) : bodyColour);						
 				}
 				g.fillRect(snake.get(i).x * DOT_SIZE, snake.get(i).y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
 			}
 
-			if (gameState == GameState.BFS) {
-				showType(g, "AutoSnek: BFS");
-			} else if (gameState == GameState.BFS_MANHATTAN) {
-				showType(g, "AutoSnek: BFS with Manhattan");
-			} else if (gameState == GameState.FAIL) {
+			
+			showStates(g);
+			
+			if (gameState == GameState.FAIL) {
 				showMessage(g, "Game Over, Press Space to restart");
 			} else if (gameState == GameState.PAUSED) {
 				showMessage(g, "Paused");
+				showStates(g);
+				showOptionsMessage(g);
 			}
 			
 			Toolkit.getDefaultToolkit().sync();
@@ -152,10 +155,48 @@ class Board extends JPanel implements ActionListener {
 		g.drawString(msg, (WIDTH * DOT_SIZE - getFontMetrics(small).stringWidth(msg)) / 2, HEIGHT * DOT_SIZE / 3);
 	}
 	
-	private void showType(Graphics g, String msg) {
+	private void showOptionsMessage(Graphics g) {
+		Font small = new Font("Helvetica", Font.BOLD, 14);
+		g.setColor(Color.white);
+		g.setFont(small);
+		List<String> options = new ArrayList<>();
+		options.add("Options:");
+		options.add("F: Fast");
+		options.add("C: Colourful mode");
+		options.add("B: Breadth First Search");
+		options.add("M: Breadth First Search, with Manhattan distances, ignoring tail");
+		for (int i = 0; i < options.size(); i++) {
+			g.drawString(
+					options.get(i), 
+					0, 
+					HEIGHT * DOT_SIZE - (getFontMetrics(small).getHeight() * (options.size() - i)));			
+		}
+	}
+	
+	private void showStates(Graphics g) {
 		g.setColor(Color.white);
 		g.setFont(new Font("Helvetica", Font.BOLD, 14));
-		g.drawString(msg, 0, DOT_SIZE);
+		String pathFindingMode = "";
+		
+		if (pathfinding == Pathfinding.BFS) {
+			pathFindingMode = "AutoSnek: BFS";
+		} else if (pathfinding == Pathfinding.BFS_MANHATTAN) {
+			pathFindingMode = "AutoSnek: BFS with Manhattan";
+		}
+		List<String> states = new ArrayList<>();
+		states.add(pathFindingMode);
+		
+		if (currentDelay == FAST_DELAY) {
+			states.add("Fast");
+		}
+		
+		if (colourfulMode) {
+			states.add("Colourful");
+		}		
+		
+		for (int i = 0; i < states.size(); i++) {
+			g.drawString(states.get(i), 0, DOT_SIZE * (i + 1));			
+		}
 	}
 
 	private void checkApple(Coordinate last) {
@@ -236,11 +277,8 @@ class Board extends JPanel implements ActionListener {
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		switch (gameState) {
-			case LIVE:
-				checkApple(move());
-				checkCollision();
-				break;
+		
+		switch(pathfinding) {
 			case BFS:
 			case BFS_MANHATTAN:
 				if (pathToFollow.isEmpty()) {
@@ -248,6 +286,12 @@ class Board extends JPanel implements ActionListener {
 				} else {
 					currentDirection = pathToFollow.remove(0);					
 				}
+			default:
+				break;
+		}
+		
+		switch (gameState) {
+			case LIVE:
 				checkApple(move());
 				checkCollision();
 				break;
@@ -262,7 +306,7 @@ class Board extends JPanel implements ActionListener {
 	List<Direction> pathToFollow = new ArrayList<>();
 
 	private Direction findNextAutoDirection() {
-		visited = new LinkedList<Board.Node>();
+		visited = new LinkedList<Node>();
 		
 		Node startNode = new Node(new Coordinate(snake.get(0).x, snake.get(0).y));
 		Node goalNode = new Node(new Coordinate(foodCoordinate.x, foodCoordinate.y));
@@ -309,7 +353,7 @@ class Board extends JPanel implements ActionListener {
 	      visited.add(node);
 	      
 	      // add neighbours to the "to visit" list
-	      for (Node neighborNode : node.getNodeNeighbors()) {
+	      for (Node neighborNode : getNodeNeighbors(node)) {
 	    	
 	        if (!visited.contains(neighborNode) && 
 	        	!toVisit.contains(neighborNode)
@@ -325,70 +369,33 @@ class Board extends JPanel implements ActionListener {
 	  return null;
 	}
 	
-	public class Node {
-	  Coordinate coordinates;	
-	  Node pathParent;
-	  
-	  public List<Node> getNodeNeighbors() {
-		  Set<Coordinate> neighborCoordinates = getNeighbouringCoordinates(coordinates.x, coordinates.y);
+	public List<Node> getNodeNeighbors(Node node) {
+		Set<Coordinate> neighborCoordinates = getNeighbouringCoordinates(node.coordinates.x, node.coordinates.y);
 		  
-		  List<Node> neighbours = new ArrayList<Node>();
-		  for (Coordinate coordinate : neighborCoordinates) {
-			  Node node = new Node(coordinate);
-			  node.pathParent = this;
-			  neighbours.add(node);				  			  
-		  }
+		if (pathfinding == Pathfinding.BFS) {
+			neighborCoordinates.removeAll(snake);
+		} else if (pathfinding == Pathfinding.BFS_MANHATTAN) {
+			Iterator<Coordinate> iterator = neighborCoordinates.iterator();
+			while (iterator.hasNext()) {
+				Coordinate coordinate = iterator.next();
+				if (snake.contains(coordinate)) {
+					int distanceFromSnakeTail = distanceFromSnakeTail(coordinate);
+					int manhattanDistance = manhattanDistance(snake.get(0), coordinate);
+					if (manhattanDistance < distanceFromSnakeTail) {
+						iterator.remove();
+					}			  				  
+				}
+			}			  
+		}
 		  
-		  return neighbours;
-	  }
-	  
-	  public Direction findDirectionToAdjacentNode(Node target) {
-		  if (target.coordinates.x > this.coordinates.x) {
-				return Direction.RIGHT;			
-			} else if (target.coordinates.x < this.coordinates.x) {
-				return Direction.LEFT;
-			} else if (target.coordinates.y > this.coordinates.y) {
-				return Direction.DOWN;
-			} else if (target.coordinates.y < this.coordinates.y) {
-				return Direction.UP;
-			}
-		  return Direction.DOWN;
-	  }
-
-		public Node(Coordinate coordinates) {
-			super();
-			this.coordinates = coordinates;
+		List<Node> neighbours = new ArrayList<Node>();
+		for (Coordinate coordinate : neighborCoordinates) {
+			Node parent = new Node(coordinate);
+			parent.pathParent = node;
+			neighbours.add(parent);				  			  
 		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + ((coordinates == null) ? 0 : coordinates.hashCode());
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			Node other = (Node) obj;
-			if (coordinates == null) {
-				if (other.coordinates != null)
-					return false;
-			} else if (!coordinates.equals(other.coordinates))
-				return false;
-			return true;
-		}
-		
-		@Override
-		public String toString() {
-			return coordinates.x + " " + coordinates.y;
-		}
+		  
+		return neighbours;
 	}
 	
 	private Set<Coordinate> getNeighbouringCoordinates(int x, int y) {
@@ -409,22 +416,6 @@ class Board extends JPanel implements ActionListener {
 		//right
 		  if (x + 1 < WIDTH) {
 			  neighborCoordinates.add(new Coordinate(x + 1, y));
-		  }
-		  
-		  if (gameState == GameState.BFS) {
-			  neighborCoordinates.removeAll(snake);
-		  } else if (gameState == GameState.BFS_MANHATTAN) {
-			  Iterator<Coordinate> iterator = neighborCoordinates.iterator();
-			  while (iterator.hasNext()) {
-				  Coordinate coordinate = iterator.next();
-				  if (snake.contains(coordinate)) {
-					  int distanceFromSnakeTail = distanceFromSnakeTail(coordinate);
-					  int manhattanDistance = manhattanDistance(snake.get(0), coordinate);
-					  if (manhattanDistance < distanceFromSnakeTail) {
-						  iterator.remove();
-					  }			  				  
-				  }
-			  }			  
 		  }
 		
 		return neighborCoordinates;
@@ -483,8 +474,6 @@ class Board extends JPanel implements ActionListener {
 				// Pause
 			case VK_SPACE:
 				switch (gameState) {
-				case BFS:
-				case BFS_MANHATTAN:
 				case LIVE:
 					gameState = GameState.PAUSED;
 					break;
@@ -500,36 +489,26 @@ class Board extends JPanel implements ActionListener {
 				}
 				break;
 				
-				// Auto mode!
-			case KeyEvent.VK_A:
-				if (gameState == GameState.LIVE) {
-					gameState = GameState.BFS;					
-				} else if (gameState == GameState.BFS_MANHATTAN) {
-						gameState = GameState.BFS;
-				} else if (gameState == GameState.FAIL) {
-					initGame();
-					gameState = GameState.BFS;
-				} else {
-					gameState = GameState.LIVE;
-				}
-				break;
-				
-				// Auto mode!
+				// BFS
 			case KeyEvent.VK_B:
-				if (gameState == GameState.LIVE) {
-					gameState = GameState.BFS_MANHATTAN;					
-				} else if (gameState == GameState.BFS) {
-					gameState = GameState.BFS_MANHATTAN;	
-				} else if (gameState == GameState.FAIL) {
-					initGame();
-					gameState = GameState.BFS_MANHATTAN;
+				if (pathfinding == Pathfinding.BFS) {
+					pathfinding = Pathfinding.MANUAL;					
 				} else {
-					gameState = GameState.LIVE;
+					pathfinding = Pathfinding.BFS;
 				}
 				break;
 				
+				// Manhattan distances (ignore tail segments that will be gone by time we reach them)
 			case KeyEvent.VK_M:
-				maintainColours = !maintainColours;
+				if (pathfinding == Pathfinding.BFS_MANHATTAN) {
+					pathfinding = Pathfinding.MANUAL;					
+				} else {
+					pathfinding = Pathfinding.BFS_MANHATTAN;
+				}
+				break;
+				
+			case KeyEvent.VK_C:
+				colourfulMode = !colourfulMode;
 				break;
 				
 			case KeyEvent.VK_F:
@@ -540,7 +519,7 @@ class Board extends JPanel implements ActionListener {
 				}
 				timer.setDelay(currentDelay);
 				break;
-
+				
 			default:
 				break;
 			}
@@ -552,11 +531,14 @@ class Board extends JPanel implements ActionListener {
 			currentDirection = direction;
 		}
 	}
-
 }
 
 enum GameState {
-	LIVE, PAUSED, FAIL, BFS, INIT, BFS_MANHATTAN
+	LIVE, PAUSED, FAIL, INIT
+}
+
+enum Pathfinding {
+	MANUAL, BFS, BFS_MANHATTAN
 }
 
 enum Direction {
