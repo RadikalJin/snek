@@ -7,16 +7,12 @@ import static java.awt.event.KeyEvent.VK_SPACE;
 import static java.awt.event.KeyEvent.VK_UP;
 
 import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -25,8 +21,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
-import java.util.stream.Collectors;
-
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -40,7 +34,7 @@ public class Snake extends JFrame {
 	}
 
 	private void initUI() {
-		add(new Board());
+		add(new Board(new View()));
 		setResizable(false);
 		pack();
 		setTitle("Snake");
@@ -58,7 +52,6 @@ public class Snake extends JFrame {
 @SuppressWarnings("serial")
 class Board extends JPanel implements ActionListener {
 
-	private final int DOT_SIZE = 10;
 	private final int WIDTH = 50, 
 					  HEIGHT = 50;
 	private final int DEFAULT_DELAY = 180;
@@ -67,20 +60,17 @@ class Board extends JPanel implements ActionListener {
 	private final int STARTING_SNAKE_LENGTH = 4;
 	private final int STARTING_COORD = 5;
 	private List<Coordinate> snake = new ArrayList<>();
-	private boolean colourfulMode = false;
-	private List<Color> snakeColors = new ArrayList<>();
 	private GameState gameState = GameState.INIT;
 	private Pathfinding pathfinding = Pathfinding.MANUAL;
 	private final Random random = new Random();
 	private Timer timer;
-	private final Color headColour = Color.WHITE, 
-			bodyColour = Color.GRAY,
-			defaultFoodColour = Color.GREEN;
-	private Color currentFoodColour = defaultFoodColour;
+	private View view;
 	private Coordinate foodCoordinate;
 	private Direction currentDirection;
 
-	public Board() {
+	public Board(View view) {
+		this.view = view;
+		view.init(STARTING_SNAKE_LENGTH, WIDTH, HEIGHT);
 		initBoard();
 	}
 
@@ -88,131 +78,49 @@ class Board extends JPanel implements ActionListener {
 		addKeyListener(new SnakeKeyInputAdapter());
 		setBackground(Color.BLACK);
 		setFocusable(true);
-		setPreferredSize(new Dimension(WIDTH * DOT_SIZE, HEIGHT * DOT_SIZE));
+		setPreferredSize(view.getPreferredSize());
 		initGame();
 	}
 
 	private void initGame() {
 		currentDirection = Direction.RIGHT;
+		pathToFollow = new ArrayList<>();
+		
 		snake = new ArrayList<Coordinate>();
-		snakeColors = new ArrayList<Color>();
 		for (int i = 0; i <= STARTING_SNAKE_LENGTH; i++) {
 			snake.add(new Coordinate(STARTING_COORD - i, STARTING_COORD));
-			snakeColors.add(randomColour());				
 		}
-
-		relocateApple();
-
+		relocateFood();
+		
 		timer = new Timer(currentDelay, this);
 		timer.start();
-	}
-	
-	private Color randomColour() {
-		return new Color((int)(Math.random() * 0x1000000));
 	}
 
 	@Override
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
-		doDrawing(g, gameState, pathfinding, colourfulMode);
-	}
-
-	private void doDrawing(Graphics g, GameState gameState, Pathfinding pathfinding, boolean colourfulMode) {
-		if (gameState == GameState.INIT) {
-			showMessage(g, "Welcome to Snek! Press Space to play");
-		} else {
-			g.setColor(colourfulMode ? currentFoodColour : defaultFoodColour);				
-			g.fillRect(foodCoordinate.x * DOT_SIZE, foodCoordinate.y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
-
-			drawSnake(g, snake);
-			
-			showStates(g, pathfinding);
-			
-			if (gameState == GameState.FAIL) {
-				showMessage(g, "Game Over, Press Space to restart");
-			} else if (gameState == GameState.PAUSED) {
-				showMessage(g, "Paused");
-				showStates(g, pathfinding);
-				showOptionsMessage(g);
-			}
-			
-			Toolkit.getDefaultToolkit().sync();
-		}
+		view.doDrawing(g, gameState, foodCoordinate, snake, getStates());
 	}
 	
-	private void drawSnake(Graphics g, List<Coordinate> snake) {
-		for (int i = snake.size() - 1; i >= 0; i--) {
-			//head
-			if (i == 0) {
-				g.setColor(headColour);
-			//body
-			} else {
-				g.setColor(colourfulMode ? snakeColors.get(i) : bodyColour);						
-			}
-			g.fillRect(snake.get(i).x * DOT_SIZE, snake.get(i).y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
-		}
-	}
-
-	private void showMessage(Graphics g, String msg) {
-		Font small = new Font("Helvetica", Font.BOLD, 14);
-		g.setColor(Color.white);
-		g.setFont(small);
-		g.drawString(msg, (WIDTH * DOT_SIZE - getFontMetrics(small).stringWidth(msg)) / 2, HEIGHT * DOT_SIZE / 3);
-	}
-	
-	private void showOptionsMessage(Graphics g) {
-		Font small = new Font("Helvetica", Font.BOLD, 14);
-		g.setColor(Color.white);
-		g.setFont(small);
-		List<String> options = new ArrayList<>();
-		options.add("Options:");
-		options.add("F: Fast");
-		options.add("C: Colourful mode");
-		options.addAll(
-				Arrays.asList(Pathfinding.values())
-					.stream()
-					.filter(e -> e != Pathfinding.MANUAL)
-					.map(e -> KeyEvent.getKeyText(e.matchingKey()) + ": " + e.getFullDescription())
-					.collect(Collectors.toList()));
-		for (int i = 0; i < options.size(); i++) {
-			g.drawString(
-					options.get(i), 
-					0, 
-					HEIGHT * DOT_SIZE - (getFontMetrics(small).getHeight() * (options.size() - i)));			
-		}
-	}
-	
-	private void showStates(Graphics g, Pathfinding pathfinding) {
-		g.setColor(Color.white);
-		g.setFont(new Font("Helvetica", Font.BOLD, 14));
-		String pathFindingMode = "";
+	private List<String> getStates() {
+		List<String> states = new ArrayList<>();
 		
 		if (pathfinding != Pathfinding.MANUAL) {
-			pathFindingMode = "AutoSnek: " + pathfinding.getStateName();			
+			states.add("AutoSnek: " + pathfinding.getStateName());			
 		}
-
-		List<String> states = new ArrayList<>();
-		states.add(pathFindingMode);
 		
 		if (currentDelay == FAST_DELAY) {
 			states.add("Fast");
 		}
-		
-		if (colourfulMode) {
-			states.add("Colourful");
-		}		
-		
-		for (int i = 0; i < states.size(); i++) {
-			g.drawString(states.get(i), 0, DOT_SIZE * (i + 1));			
-		}
+		return states;		
 	}
 
-	private void checkApple(Coordinate last) {
+	private void checkFood(Coordinate last) {
 		if (snake.get(0).equals(foodCoordinate)) {
 			snake.add(last);
-			snakeColors.add(currentFoodColour);
+			view.foodEaten();
 			
-			relocateApple();
+			relocateFood();
 		}
 	}
 
@@ -273,13 +181,12 @@ class Board extends JPanel implements ActionListener {
 		}
 	}
 
-	private void relocateApple() {
-		currentFoodColour = randomColour();
+	private void relocateFood() {
 		foodCoordinate = new Coordinate(
 				random.nextInt(WIDTH),
 				random.nextInt(HEIGHT));
 		if (snake.contains(foodCoordinate)) {
-			relocateApple();
+			relocateFood();
 		}
 	}
 
@@ -301,7 +208,7 @@ class Board extends JPanel implements ActionListener {
 		
 		switch (gameState) {
 			case LIVE:
-				checkApple(move());
+				checkFood(move());
 				checkCollision();
 				break;
 			case PAUSED:
@@ -529,7 +436,7 @@ class Board extends JPanel implements ActionListener {
 				break;
 				
 			case KeyEvent.VK_C:
-				colourfulMode = !colourfulMode;
+				view.toggleColourfulMode();
 				break;
 				
 			case KeyEvent.VK_F:
@@ -570,109 +477,3 @@ enum GameState {
 	LIVE, PAUSED, FAIL, INIT
 }
 
-enum Pathfinding implements Option {
-	MANUAL {
-		@Override
-		public String getFullDescription() {
-			return "Manual";
-		}
-
-		@Override
-		public int matchingKey() {
-			return 0;
-		}
-
-		@Override
-		public String getStateName() {
-			return "Manual";
-		}		
-	}, 
-	BFS {
-		@Override
-		public String getFullDescription() {
-			return "Breadth First Search";
-		}
-
-		@Override
-		public int matchingKey() {
-			return KeyEvent.VK_B;
-		}
-
-		@Override
-		public String getStateName() {
-			return "BFS";
-		}
-	}, 
-	BFS_MANHATTAN {
-		@Override
-		public String getFullDescription() {
-			return "Breadth First Search, with Manhattan distances, ignoring tail";
-		}
-
-		@Override
-		public int matchingKey() {
-			return KeyEvent.VK_M;
-		}
-
-		@Override
-		public String getStateName() {
-			return "BFS with Manhattan";
-		}
-	},
-	DFS {
-
-		@Override
-		public String getFullDescription() {
-			return "Depth First Search";
-		}
-
-		@Override
-		public int matchingKey() {
-			return KeyEvent.VK_D;
-		}
-
-		@Override
-		public String getStateName() {
-			return "DFS";
-		}	
-	};
-
-}
-
-interface Option {
-	String getStateName();
-	String getFullDescription();
-	int matchingKey();
-}
-
-enum Direction {
-	LEFT {
-		@Override
-		Direction opposite() {
-			return RIGHT;
-		}
-	},
-
-	RIGHT {
-		@Override
-		Direction opposite() {
-			return LEFT;
-		}
-	},
-
-	UP {
-		@Override
-		Direction opposite() {
-			return DOWN;
-		}
-	},
-
-	DOWN {
-		@Override
-		Direction opposite() {
-			return UP;
-		}
-	};
-
-	abstract Direction opposite();
-}
