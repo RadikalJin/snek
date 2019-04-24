@@ -16,6 +16,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -112,39 +114,42 @@ class Board extends JPanel implements ActionListener {
 	@Override
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
-		doDrawing(g);
+		doDrawing(g, gameState, pathfinding, colourfulMode);
 	}
 
-	private void doDrawing(Graphics g) {
+	private void doDrawing(Graphics g, GameState gameState, Pathfinding pathfinding, boolean colourfulMode) {
 		if (gameState == GameState.INIT) {
 			showMessage(g, "Welcome to Snek! Press Space to play");
 		} else {
 			g.setColor(colourfulMode ? currentFoodColour : defaultFoodColour);				
 			g.fillRect(foodCoordinate.x * DOT_SIZE, foodCoordinate.y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
 
-			for (int i = snake.size() - 1; i >= 0; i--) {
-				//head
-				if (i == 0) {
-					g.setColor(headColour);
-				//body
-				} else {
-					g.setColor(colourfulMode ? snakeColors.get(i) : bodyColour);						
-				}
-				g.fillRect(snake.get(i).x * DOT_SIZE, snake.get(i).y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
-			}
-
+			drawSnake(g, snake);
 			
-			showStates(g);
+			showStates(g, pathfinding);
 			
 			if (gameState == GameState.FAIL) {
 				showMessage(g, "Game Over, Press Space to restart");
 			} else if (gameState == GameState.PAUSED) {
 				showMessage(g, "Paused");
-				showStates(g);
+				showStates(g, pathfinding);
 				showOptionsMessage(g);
 			}
 			
 			Toolkit.getDefaultToolkit().sync();
+		}
+	}
+	
+	private void drawSnake(Graphics g, List<Coordinate> snake) {
+		for (int i = snake.size() - 1; i >= 0; i--) {
+			//head
+			if (i == 0) {
+				g.setColor(headColour);
+			//body
+			} else {
+				g.setColor(colourfulMode ? snakeColors.get(i) : bodyColour);						
+			}
+			g.fillRect(snake.get(i).x * DOT_SIZE, snake.get(i).y * DOT_SIZE, DOT_SIZE, DOT_SIZE);
 		}
 	}
 
@@ -163,8 +168,12 @@ class Board extends JPanel implements ActionListener {
 		options.add("Options:");
 		options.add("F: Fast");
 		options.add("C: Colourful mode");
-		options.add("B: Breadth First Search");
-		options.add("M: Breadth First Search, with Manhattan distances, ignoring tail");
+		options.addAll(
+				Arrays.asList(Pathfinding.values())
+					.stream()
+					.filter(e -> e != Pathfinding.MANUAL)
+					.map(e -> KeyEvent.getKeyText(e.matchingKey()) + ": " + e.getFullDescription())
+					.collect(Collectors.toList()));
 		for (int i = 0; i < options.size(); i++) {
 			g.drawString(
 					options.get(i), 
@@ -173,16 +182,15 @@ class Board extends JPanel implements ActionListener {
 		}
 	}
 	
-	private void showStates(Graphics g) {
+	private void showStates(Graphics g, Pathfinding pathfinding) {
 		g.setColor(Color.white);
 		g.setFont(new Font("Helvetica", Font.BOLD, 14));
 		String pathFindingMode = "";
 		
-		if (pathfinding == Pathfinding.BFS) {
-			pathFindingMode = "AutoSnek: BFS";
-		} else if (pathfinding == Pathfinding.BFS_MANHATTAN) {
-			pathFindingMode = "AutoSnek: BFS with Manhattan";
+		if (pathfinding != Pathfinding.MANUAL) {
+			pathFindingMode = "AutoSnek: " + pathfinding.getStateName();			
 		}
+
 		List<String> states = new ArrayList<>();
 		states.add(pathFindingMode);
 		
@@ -281,8 +289,9 @@ class Board extends JPanel implements ActionListener {
 		switch(pathfinding) {
 			case BFS:
 			case BFS_MANHATTAN:
+			case DFS:
 				if (pathToFollow.isEmpty()) {
-					currentDirection = findNextAutoDirection();
+					currentDirection = findNextAutoDirection(pathfinding);
 				} else {
 					currentDirection = pathToFollow.remove(0);					
 				}
@@ -305,7 +314,7 @@ class Board extends JPanel implements ActionListener {
 	
 	List<Direction> pathToFollow = new ArrayList<>();
 
-	private Direction findNextAutoDirection() {
+	private Direction findNextAutoDirection(Pathfinding pathfinding) {
 		visited = new LinkedList<Node>();
 		
 		Node startNode = new Node(new Coordinate(snake.get(0).x, snake.get(0).y));
@@ -344,7 +353,17 @@ class Board extends JPanel implements ActionListener {
 	  startNode.pathParent = null;
 	  
 	  while (!toVisit.isEmpty()) {
-	    Node node = (Node)toVisit.removeFirst();
+		  Node node = null;
+		  switch (pathfinding) {
+		  	case DFS:
+		  		node = (Node)toVisit.removeLast();
+		  		break;
+		  	case BFS: 
+		  	case BFS_MANHATTAN: 
+		  	default:
+		  		node = (Node)toVisit.removeFirst();
+		  		break;
+		  }
 	    if (node.equals(goalNode)) {
 	      // path found!
 	      return constructPath(node);
@@ -371,21 +390,26 @@ class Board extends JPanel implements ActionListener {
 	
 	public List<Node> getNodeNeighbors(Node node) {
 		Set<Coordinate> neighborCoordinates = getNeighbouringCoordinates(node.coordinates.x, node.coordinates.y);
-		  
-		if (pathfinding == Pathfinding.BFS) {
-			neighborCoordinates.removeAll(snake);
-		} else if (pathfinding == Pathfinding.BFS_MANHATTAN) {
-			Iterator<Coordinate> iterator = neighborCoordinates.iterator();
-			while (iterator.hasNext()) {
-				Coordinate coordinate = iterator.next();
-				if (snake.contains(coordinate)) {
-					int distanceFromSnakeTail = distanceFromSnakeTail(coordinate);
-					int manhattanDistance = manhattanDistance(snake.get(0), coordinate);
-					if (manhattanDistance < distanceFromSnakeTail) {
-						iterator.remove();
-					}			  				  
-				}
-			}			  
+		
+		switch (pathfinding) {
+			case BFS:
+			case DFS:
+				neighborCoordinates.removeAll(snake);
+				break;
+			case BFS_MANHATTAN:
+			default:
+				Iterator<Coordinate> iterator = neighborCoordinates.iterator();
+				while (iterator.hasNext()) {
+					Coordinate coordinate = iterator.next();
+					if (snake.contains(coordinate)) {
+						int distanceFromSnakeTail = distanceFromSnakeTail(coordinate);
+						int manhattanDistance = manhattanDistance(snake.get(0), coordinate);
+						if (manhattanDistance < distanceFromSnakeTail) {
+							iterator.remove();
+						}			  				  
+					}
+				}			  
+				break;
 		}
 		  
 		List<Node> neighbours = new ArrayList<Node>();
@@ -491,20 +515,17 @@ class Board extends JPanel implements ActionListener {
 				
 				// BFS
 			case KeyEvent.VK_B:
-				if (pathfinding == Pathfinding.BFS) {
-					pathfinding = Pathfinding.MANUAL;					
-				} else {
-					pathfinding = Pathfinding.BFS;
-				}
+				togglePathfinding(Pathfinding.BFS);
 				break;
 				
 				// Manhattan distances (ignore tail segments that will be gone by time we reach them)
 			case KeyEvent.VK_M:
-				if (pathfinding == Pathfinding.BFS_MANHATTAN) {
-					pathfinding = Pathfinding.MANUAL;					
-				} else {
-					pathfinding = Pathfinding.BFS_MANHATTAN;
-				}
+				togglePathfinding(Pathfinding.BFS_MANHATTAN);
+				break;
+
+				// DFS
+			case KeyEvent.VK_D:
+				togglePathfinding(Pathfinding.DFS);
 				break;
 				
 			case KeyEvent.VK_C:
@@ -512,18 +533,30 @@ class Board extends JPanel implements ActionListener {
 				break;
 				
 			case KeyEvent.VK_F:
-				if (currentDelay == DEFAULT_DELAY) {
-					currentDelay = FAST_DELAY;
-				} else if (currentDelay == FAST_DELAY) {
-					currentDelay = DEFAULT_DELAY;
-				}
-				timer.setDelay(currentDelay);
+				toggleSpeed();
 				break;
 				
 			default:
 				break;
 			}
 		}
+	}
+	
+	private void togglePathfinding(Pathfinding selected) {
+		if (pathfinding == selected) {
+			pathfinding = Pathfinding.MANUAL;					
+		} else {
+			pathfinding = selected;
+		}
+	}
+	
+	private void toggleSpeed() {
+		if (currentDelay == DEFAULT_DELAY) {
+			currentDelay = FAST_DELAY;
+		} else if (currentDelay == FAST_DELAY) {
+			currentDelay = DEFAULT_DELAY;
+		}
+		timer.setDelay(currentDelay);
 	}
 
 	private void setCurrentDirectionIfNotAlready(Direction direction) {
@@ -537,8 +570,79 @@ enum GameState {
 	LIVE, PAUSED, FAIL, INIT
 }
 
-enum Pathfinding {
-	MANUAL, BFS, BFS_MANHATTAN
+enum Pathfinding implements Option {
+	MANUAL {
+		@Override
+		public String getFullDescription() {
+			return "Manual";
+		}
+
+		@Override
+		public int matchingKey() {
+			return 0;
+		}
+
+		@Override
+		public String getStateName() {
+			return "Manual";
+		}		
+	}, 
+	BFS {
+		@Override
+		public String getFullDescription() {
+			return "Breadth First Search";
+		}
+
+		@Override
+		public int matchingKey() {
+			return KeyEvent.VK_B;
+		}
+
+		@Override
+		public String getStateName() {
+			return "BFS";
+		}
+	}, 
+	BFS_MANHATTAN {
+		@Override
+		public String getFullDescription() {
+			return "Breadth First Search, with Manhattan distances, ignoring tail";
+		}
+
+		@Override
+		public int matchingKey() {
+			return KeyEvent.VK_M;
+		}
+
+		@Override
+		public String getStateName() {
+			return "BFS with Manhattan";
+		}
+	},
+	DFS {
+
+		@Override
+		public String getFullDescription() {
+			return "Depth First Search";
+		}
+
+		@Override
+		public int matchingKey() {
+			return KeyEvent.VK_D;
+		}
+
+		@Override
+		public String getStateName() {
+			return "DFS";
+		}	
+	};
+
+}
+
+interface Option {
+	String getStateName();
+	String getFullDescription();
+	int matchingKey();
 }
 
 enum Direction {
