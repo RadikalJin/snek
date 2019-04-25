@@ -190,6 +190,8 @@ class Board extends JPanel implements ActionListener {
 		}
 	}
 
+	List<Direction> pathToFollow = new ArrayList<>();
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		
@@ -198,8 +200,9 @@ class Board extends JPanel implements ActionListener {
 			case BFS_MANHATTAN:
 			case DFS:
 				if (pathToFollow.isEmpty()) {
-					currentDirection = findNextAutoDirection(pathfinding);
-				} else {
+					pathToFollow = pathfinding.find(snake, foodCoordinate, WIDTH, HEIGHT);
+				} 
+				if (!pathToFollow.isEmpty()) {
 					currentDirection = pathToFollow.remove(0);					
 				}
 			default:
@@ -217,164 +220,6 @@ class Board extends JPanel implements ActionListener {
 		}
 
 		repaint();
-	}
-	
-	List<Direction> pathToFollow = new ArrayList<>();
-
-	private Direction findNextAutoDirection(Pathfinding pathfinding) {
-		visited = new LinkedList<Node>();
-		
-		Node startNode = new Node(new Coordinate(snake.get(0).x, snake.get(0).y));
-		Node goalNode = new Node(new Coordinate(foodCoordinate.x, foodCoordinate.y));
-		List<Node> search = search(startNode, goalNode);
-		if (search != null) {
-			System.out.println("Found!: " + search);	
-		} else {
-			System.out.println("None found");			
-		}
-		if (search==null || search.isEmpty()) {
-			Optional<Coordinate> firstNeighbour = getNeighbouringCoordinates(snake.get(0).x, snake.get(0).y).stream().findFirst();
-			if (! firstNeighbour.isPresent()) {
-				return Direction.DOWN; // as in, you're going down, because game over
-			} else {
-				search = Collections.singletonList(new Node(firstNeighbour.get()));
-			}
-		}
-		
-		for (int i = 0; i < search.size() - 2; i++) {
-			pathToFollow.add(search.get(i).findDirectionToAdjacentNode(search.get(i + 1)));
-		}
-			
-		return startNode.findDirectionToAdjacentNode(search.get(0));
-	}
-	
-	
-	// list of visited nodes
-  	LinkedList<Node> visited = new LinkedList<>();
-	
-	public List<Node> search(Node startNode, Node goalNode) {
-		  
-	  // list of nodes to visit (sorted)
-	  LinkedList<Node> toVisit = new LinkedList<>();
-	  toVisit.add(startNode);
-	  startNode.pathParent = null;
-	  
-	  while (!toVisit.isEmpty()) {
-		  Node node = null;
-		  switch (pathfinding) {
-		  	case DFS:
-		  		node = (Node)toVisit.removeLast();
-		  		break;
-		  	case BFS: 
-		  	case BFS_MANHATTAN: 
-		  	default:
-		  		node = (Node)toVisit.removeFirst();
-		  		break;
-		  }
-	    if (node.equals(goalNode)) {
-	      // path found!
-	      return constructPath(node);
-	      
-	    } else {
-	      visited.add(node);
-	      
-	      // add neighbours to the "to visit" list
-	      for (Node neighborNode : getNodeNeighbors(node)) {
-	    	
-	        if (!visited.contains(neighborNode) && 
-	        	!toVisit.contains(neighborNode)
-	        ) {
-	          neighborNode.pathParent = node;
-	          toVisit.add(neighborNode);
-	        }
-	      }
-	    }
-	  }
-	  
-	  // no path found
-	  return null;
-	}
-	
-	public List<Node> getNodeNeighbors(Node node) {
-		Set<Coordinate> neighborCoordinates = getNeighbouringCoordinates(node.coordinates.x, node.coordinates.y);
-		
-		switch (pathfinding) {
-			case BFS:
-			case DFS:
-				neighborCoordinates.removeAll(snake);
-				break;
-			case BFS_MANHATTAN:
-			default:
-				Iterator<Coordinate> iterator = neighborCoordinates.iterator();
-				while (iterator.hasNext()) {
-					Coordinate coordinate = iterator.next();
-					if (snake.contains(coordinate)) {
-						int distanceFromSnakeTail = distanceFromSnakeTail(coordinate);
-						int manhattanDistance = manhattanDistance(snake.get(0), coordinate);
-						if (manhattanDistance < distanceFromSnakeTail) {
-							iterator.remove();
-						}			  				  
-					}
-				}			  
-				break;
-		}
-		  
-		List<Node> neighbours = new ArrayList<Node>();
-		for (Coordinate coordinate : neighborCoordinates) {
-			Node parent = new Node(coordinate);
-			parent.pathParent = node;
-			neighbours.add(parent);				  			  
-		}
-		  
-		return neighbours;
-	}
-	
-	private Set<Coordinate> getNeighbouringCoordinates(int x, int y) {
-		Set<Coordinate> neighborCoordinates = new HashSet<Coordinate>();
-		  
-		//up
-		  if (y + 1 < HEIGHT) {
-			  neighborCoordinates.add(new Coordinate(x, y + 1));
-		  }
-		//down
-		  if (y - 1 >= 0) {
-			  neighborCoordinates.add(new Coordinate(x, y - 1));
-		  }
-		//left
-		  if (x - 1 >= 0) {
-			  neighborCoordinates.add(new Coordinate(x - 1, y));
-		  }
-		//right
-		  if (x + 1 < WIDTH) {
-			  neighborCoordinates.add(new Coordinate(x + 1, y));
-		  }
-		
-		return neighborCoordinates;
-	}
-	
-	
-	private int distanceFromSnakeTail(Coordinate node) {
-		if (snake.contains(node)) {
-			return snake.size() - snake.indexOf(node); 
-		} else {
-			return 999;
-		}
-	}
-	
-	
-	private int manhattanDistance(Coordinate first, Coordinate second) {
-		return Math.abs(second.x - first.x) 
-				+ Math.abs(second.y - first.y);
-	}
-	
-	
-	protected List<Node> constructPath(Node node) {
-	  LinkedList<Node> path = new LinkedList<>();
-	  while (node.pathParent != null) {
-	    path.addFirst(node);
-	    node = node.pathParent;
-	  }
-	  return path;
 	}
 	
 
