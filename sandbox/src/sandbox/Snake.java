@@ -115,15 +115,6 @@ class Board extends JPanel implements ActionListener {
 		return states;		
 	}
 
-	private void checkFood(Coordinate last) {
-		if (snake.get(0).equals(foodCoordinate)) {
-			snake.add(last);
-			view.foodEaten();
-			
-			relocateFood();
-		}
-	}
-
 	private Coordinate move() {
 		Coordinate head = snake.get(0);
 		switch (currentDirection) {
@@ -153,32 +144,6 @@ class Board extends JPanel implements ActionListener {
 		
 		// return last
 		return snake.remove(snake.size() - 1);
-	}
-
-	private void checkCollision() {
-
-		Coordinate snakeHead = null;
-		for (Coordinate snakeSegment : snake) {
-			if (snakeHead == null) {
-				snakeHead = snake.get(0);
-
-			} else {
-				// if head overlaps any of body
-				if (snakeHead.x == snakeSegment.x && snakeHead.y == snakeSegment.y) {
-					gameState = GameState.FAIL;
-				}
-			}
-		}
-
-		// if outside of grid
-		if (snake.get(0).y >= HEIGHT || snake.get(0).y < 0 || snake.get(0).x >= WIDTH
-				|| snake.get(0).x < 0) {
-			gameState = GameState.FAIL;
-		}
-
-		if (gameState == GameState.PAUSED || gameState == GameState.FAIL) {
-			timer.stop();
-		}
 	}
 
 	private void relocateFood() {
@@ -211,8 +176,8 @@ class Board extends JPanel implements ActionListener {
 		
 		switch (gameState) {
 			case LIVE:
-				checkFood(move());
-				checkCollision();
+				checkFood(snake, foodCoordinate, move());
+				checkCollision(snake);
 				break;
 			case PAUSED:
 			default:
@@ -220,6 +185,43 @@ class Board extends JPanel implements ActionListener {
 		}
 
 		repaint();
+	}
+	
+	
+	private void checkFood(List<Coordinate> snake, Coordinate foodCoordinate, Coordinate last) {
+		if (snake.get(0).equals(foodCoordinate)) {
+			snake.add(last);
+			view.foodEaten();
+			
+			relocateFood();
+		}
+	}
+	
+	
+	private void checkCollision(List<Coordinate> snake) {
+
+		Coordinate snakeHead = null;
+		for (Coordinate snakeSegment : snake) {
+			if (snakeHead == null) {
+				snakeHead = snake.get(0);
+
+			} else {
+				// if head overlaps any of body
+				if (snakeHead.x == snakeSegment.x && snakeHead.y == snakeSegment.y) {
+					gameState = GameState.FAIL;
+				}
+			}
+		}
+
+		// if outside of grid
+		if (snake.get(0).y >= HEIGHT || snake.get(0).y < 0 || snake.get(0).x >= WIDTH
+				|| snake.get(0).x < 0) {
+			gameState = GameState.FAIL;
+		}
+
+		if (gameState == GameState.PAUSED || gameState == GameState.FAIL) {
+			timer.stop();
+		}
 	}
 	
 
@@ -294,6 +296,12 @@ class Board extends JPanel implements ActionListener {
 		}
 	}
 	
+	private void setCurrentDirectionIfNotAlready(Direction direction) {
+		if (direction != currentDirection.opposite()) {
+			currentDirection = direction;
+		}
+	}
+	
 	private void togglePathfinding(Pathfinding selected) {
 		if (pathfinding == selected) {
 			pathfinding = Pathfinding.MANUAL;					
@@ -310,15 +318,5 @@ class Board extends JPanel implements ActionListener {
 		}
 		timer.setDelay(currentDelay);
 	}
-
-	private void setCurrentDirectionIfNotAlready(Direction direction) {
-		if (direction != currentDirection.opposite()) {
-			currentDirection = direction;
-		}
-	}
-}
-
-enum GameState {
-	LIVE, PAUSED, FAIL, INIT
 }
 
