@@ -8,10 +8,11 @@ This is primarily a way for me to try out writing pathfinding algorithms. You ca
 | --- | ----------- |
 | D | Depth First Search (DFS) |
 | B | Breadth First Search (BFS) |
-| M | Breadth First Search (BFS), but ignoring segments of tail that would have moved on by the time the head of the snake reaches them |
+| M | Breadth First Search (BFS), but ignoring segments of tail that would have moved on by the time the head of the snake reaches them (worked out using [**M**anhattan](https://en.wiktionary.org/wiki/Manhattan_distance)/taxicab distance) |
 
-TODO: Djkstra (as this is an undirected graph, this will end up being equivalent to BFS)
-TODO: A*
+TODO:
+* Djkstra (as this is an undirected graph, this will end up being equivalent to BFS)
+* A*
 
 Other options include:
 
