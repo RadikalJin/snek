@@ -9,6 +9,34 @@ public class Coordinate {
 		this.x = x;
 		this.y = y;
 	}
+	
+	public Direction findDirectionToAdjacentCoordinate(Coordinate target) {
+		  if (target.x > this.x) {
+				return Direction.RIGHT;			
+			} else if (target.x < this.x) {
+				return Direction.LEFT;
+			} else if (target.y > this.y) {
+				return Direction.DOWN;
+			} else if (target.y < this.y) {
+				return Direction.UP;
+			}
+		  return Direction.DOWN;
+	}
+	
+	public Coordinate getCoordinateInDirection(Direction direction) {
+		switch (direction) {
+			case RIGHT:			
+				return new Coordinate(this.x + 1, this.y);
+			case LEFT:			
+				return new Coordinate(this.x - 1, this.y);
+			case UP:			
+				return new Coordinate(this.x, this.y - 1);
+			case DOWN:			
+				return new Coordinate(this.x, this.y + 1);
+		}
+		return this;					
+	}
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;

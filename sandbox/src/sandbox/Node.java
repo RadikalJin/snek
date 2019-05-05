@@ -3,20 +3,6 @@ package sandbox;
 public class Node {
 	  Coordinate coordinates;	
 	  Node pathParent;
-	  
-	  
-	  public Direction findDirectionToAdjacentNode(Node target) {
-		  if (target.coordinates.x > this.coordinates.x) {
-				return Direction.RIGHT;			
-			} else if (target.coordinates.x < this.coordinates.x) {
-				return Direction.LEFT;
-			} else if (target.coordinates.y > this.coordinates.y) {
-				return Direction.DOWN;
-			} else if (target.coordinates.y < this.coordinates.y) {
-				return Direction.UP;
-			}
-		  return Direction.DOWN;
-	  }
 
 		public Node(Coordinate coordinates) {
 			super();

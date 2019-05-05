@@ -159,23 +159,23 @@ class Board extends JPanel implements ActionListener {
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		
-		switch(pathfinding) {
-			case BFS:
-			case BFS_MANHATTAN:
-			case DFS:
-				if (pathToFollow.isEmpty()) {
-					pathToFollow = pathfinding.find(snake, foodCoordinate, WIDTH, HEIGHT);
-				} 
-				if (!pathToFollow.isEmpty()) {
-					currentDirection = pathToFollow.remove(0);					
-				}
-			default:
-				break;
-		}
-		
+				
 		switch (gameState) {
 			case LIVE:
+				switch(pathfinding) {
+				case BFS:
+				case BFS_MANHATTAN:
+				case DFS:
+				case HEURISTIC:
+					if (pathToFollow.isEmpty()) {
+						pathToFollow = pathfinding.find(snake, foodCoordinate, WIDTH, HEIGHT);
+					} 
+					if (!pathToFollow.isEmpty()) {
+						currentDirection = pathToFollow.remove(0);					
+					}
+				default:
+					break;
+				}
 				checkFood(snake, foodCoordinate, move());
 				checkCollision(snake);
 				break;
@@ -280,6 +280,11 @@ class Board extends JPanel implements ActionListener {
 				// DFS
 			case KeyEvent.VK_D:
 				togglePathfinding(Pathfinding.DFS);
+				break;
+				
+				// Heuristic
+			case KeyEvent.VK_H:
+				togglePathfinding(Pathfinding.HEURISTIC);
 				break;
 				
 			case KeyEvent.VK_C:

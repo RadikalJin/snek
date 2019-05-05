@@ -2,6 +2,7 @@ package sandbox;
 
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -95,6 +96,55 @@ enum Pathfinding implements Option {
 		List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height) {
 			return super.findPath(snake, foodCoordinate, width, height);
 		}	
+	},
+	HEURISTIC {
+
+		@Override
+		public String getStateName() {
+			return "HEURISTIC";
+		}
+
+		@Override
+		public String getFullDescription() {
+			return "Heuristic only";
+		}
+
+		@Override
+		public int matchingKey() {
+			return KeyEvent.VK_H;
+		}
+
+		@Override
+		List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height) {
+			
+			Direction direction = firstDirection(snake.get(0), foodCoordinate);
+			
+			// It's about to crash into itself, so switch to a more intelligent pathfinding strategy
+			if (snake.contains(snake.get(0).getCoordinateInDirection(direction))) {
+				return BFS.find(snake, foodCoordinate, width, height);
+			} else {
+				return new ArrayList<Direction>(Arrays.asList(direction));				
+			}
+		}
+		
+		
+		private Direction firstDirection(Coordinate a, Coordinate b) {
+			int xDiff = a.x - b.x;
+			int yDiff = a.y - b.y;
+			
+			Direction direction = Direction.DOWN;
+			if (yDiff > 0) {
+				direction = Direction.UP;
+			} else if (yDiff < 0) {
+				direction = Direction.DOWN;
+			} else if (xDiff > 0) {
+				direction = Direction.LEFT;
+			} else if (xDiff < 0) {
+				direction = Direction.RIGHT;
+			}
+			System.out.println("x:"+xDiff +",y"+yDiff+",dir:"+direction);
+			return direction;
+		}
 	};
 
 	abstract List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height);
@@ -120,9 +170,9 @@ enum Pathfinding implements Option {
 			}
 		}
 		
-		pathToFollow.add(startNode.findDirectionToAdjacentNode(search.get(0)));
+		pathToFollow.add(startNode.coordinates.findDirectionToAdjacentCoordinate(search.get(0).coordinates));
 		for (int i = 0; i < search.size() - 2; i++) {
-			pathToFollow.add(search.get(i).findDirectionToAdjacentNode(search.get(i + 1)));
+			pathToFollow.add(search.get(i).coordinates.findDirectionToAdjacentCoordinate(search.get(i + 1).coordinates));
 		}
 			
 		return pathToFollow;
