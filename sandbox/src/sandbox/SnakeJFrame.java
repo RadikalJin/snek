@@ -27,19 +27,19 @@ public class SnakeJFrame extends JFrame implements ActionListener, GameSpeedHand
 		timer = new Timer(currentDelay, this);
 
 		view = new View();
+		board = new Board(view, this);
 		view.setBoard(board);
-		view.setBackground(Color.BLACK);
 		add(view);
 		
-		board = new Board(view, this);
 
-		setResizable(false);
 		setTitle("Snake");
 		setLocationRelativeTo(null);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		addKeyListener(new KeyAdapterAwt(board));
 		setFocusable(true);
-		setPreferredSize(view.getPreferredSize());
+		setMinimumSize(view.getPreferredSize());
+		
+		setResizable(true);
 		pack();
 		
 		timer.start();

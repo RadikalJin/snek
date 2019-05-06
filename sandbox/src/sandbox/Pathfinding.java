@@ -147,26 +147,32 @@ enum Pathfinding implements Option {
 			return direction;
 		}
 	},
-	PATTERN {
+	// A Hamiltonian cycle
+	LONGEST_PATH {
 
 		@Override
 		public String getStateName() {
-			return "PATTERN";
+			return "LONGEST PATH";
 		}
 
 		@Override
 		public String getFullDescription() {
-			return "Pattern";
+			return "Follow Hamiltonian cycle";
 		}
 
 		@Override
 		public int matchingKey() {
-			return KeyEvent.VK_P;
+			return KeyEvent.VK_L;
 		}
 
 		@Override
 		List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height) {
-			return new ArrayList<Direction>(Arrays.asList(Direction.DOWN));
+			Node goalNode = new Node(new Coordinate(1000, 1000));
+			List<Node> search = super.search(new Node(snake.get(0)), goalNode, snake, new LinkedList<Node>(), width, height);
+			List<Node> path = super.constructPath(search.get(0));
+			
+			List<Direction> directions = super.buildDirectionsFromPath(snake.get(0), path);
+			return directions;
 		}
 		
 	};
@@ -175,7 +181,6 @@ enum Pathfinding implements Option {
 	abstract List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height);
 	
 	private List<Direction> findPath(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height) {
-		List<Direction> pathToFollow = new ArrayList<>();
 		LinkedList<Node> visited = new LinkedList<Node>();
 		
 		Node startNode = new Node(new Coordinate(snake.get(0).x, snake.get(0).y));
@@ -194,12 +199,16 @@ enum Pathfinding implements Option {
 				search = Collections.singletonList(new Node(firstNeighbour.get()));
 			}
 		}
-		
-		pathToFollow.add(startNode.coordinates.findDirectionToAdjacentCoordinate(search.get(0).coordinates));
-		for (int i = 0; i < search.size() - 2; i++) {
-			pathToFollow.add(search.get(i).coordinates.findDirectionToAdjacentCoordinate(search.get(i + 1).coordinates));
-		}
 			
+		return buildDirectionsFromPath(snake.get(0), search);
+	}
+	
+	private List<Direction> buildDirectionsFromPath(Coordinate snakeHead, List<Node> path) {
+		List<Direction> pathToFollow = new ArrayList<>();
+		pathToFollow.add(snakeHead.findDirectionToAdjacentCoordinate(path.get(0).coordinates));
+		for (int i = 0; i < path.size() - 2; i++) {
+			pathToFollow.add(path.get(i).coordinates.findDirectionToAdjacentCoordinate(path.get(i + 1).coordinates));
+		}
 		return pathToFollow;
 	}
 	
@@ -212,17 +221,18 @@ enum Pathfinding implements Option {
 	  startNode.pathParent = null;
 	  
 	  while (!toVisit.isEmpty()) {
-		  Node node = null;
-		  switch (this) {
-		  	case DFS:
-		  		node = (Node)toVisit.removeLast();
-		  		break;
-		  	case BFS: 
-		  	case BFS_MANHATTAN: 
-		  	default:
-		  		node = (Node)toVisit.removeFirst();
-		  		break;
-		  }
+		Node node = null;
+		switch (this) {
+		  case DFS:
+		  	node = (Node)toVisit.removeLast();
+		  	break;
+		  case BFS: 
+		  case BFS_MANHATTAN: 
+		  case LONGEST_PATH:
+		  default:
+		  	node = (Node)toVisit.removeFirst();
+		  	break;
+		}
 	    if (node.equals(goalNode)) {
 	      // path found!
 	      return constructPath(node);
@@ -244,6 +254,12 @@ enum Pathfinding implements Option {
 	  }
 	  
 	  // no path found
+	  
+	  if (this.equals(LONGEST_PATH)) {
+		  Collections.sort(visited, Node.compareByDepth);
+		  return new ArrayList<Node>(Arrays.asList(visited.getFirst()));
+	  }
+	  
 	  return null;
 	}
 	
@@ -273,9 +289,10 @@ enum Pathfinding implements Option {
 		  
 		List<Node> neighbours = new ArrayList<Node>();
 		for (Coordinate coordinate : neighborCoordinates) {
-			Node parent = new Node(coordinate);
-			parent.pathParent = node;
-			neighbours.add(parent);				  			  
+			Node neighbour = new Node(coordinate);
+			neighbour.pathParent = node;
+			neighbour.depth = node.depth + 1;
+			neighbours.add(neighbour);				  			  
 		}
 		  
 		return neighbours;

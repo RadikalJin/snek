@@ -37,6 +37,9 @@ public class View extends JPanel {
 		for (int i = 0; i <= startingSnakeLength; i++) {
 			snakeColors.add(randomColour());				
 		}
+		setBackground(Color.BLACK);
+		setFocusable(true);
+		setPreferredSize(getPreferredSize());
 	}
 	
 	public Dimension getPreferredSize() {
@@ -46,7 +49,6 @@ public class View extends JPanel {
 	@Override
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
-		// TODO
 		doDrawing(g, board.getGameState(), board.getFoodCoordinate(), board.getSnake(), board.getStates());
 	}
 	
