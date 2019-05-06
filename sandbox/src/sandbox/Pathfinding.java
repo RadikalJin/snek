@@ -54,6 +54,7 @@ enum Pathfinding implements Option {
 			return super.findPath(snake, foodCoordinate, width, height);
 		}
 	}, 
+	// Manhattan distances (ignore tail segments that will be gone by time we reach them)
 	BFS_MANHATTAN {
 		@Override
 		public String getFullDescription() {
@@ -145,7 +146,31 @@ enum Pathfinding implements Option {
 			System.out.println("x:"+xDiff +",y"+yDiff+",dir:"+direction);
 			return direction;
 		}
+	},
+	PATTERN {
+
+		@Override
+		public String getStateName() {
+			return "PATTERN";
+		}
+
+		@Override
+		public String getFullDescription() {
+			return "Pattern";
+		}
+
+		@Override
+		public int matchingKey() {
+			return KeyEvent.VK_P;
+		}
+
+		@Override
+		List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height) {
+			return new ArrayList<Direction>(Arrays.asList(Direction.DOWN));
+		}
+		
 	};
+	
 
 	abstract List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height);
 	
@@ -164,7 +189,7 @@ enum Pathfinding implements Option {
 		if (search==null || search.isEmpty()) {
 			Optional<Coordinate> firstNeighbour = getNeighbouringCoordinates(snake.get(0).x, snake.get(0).y, width, height).stream().findFirst();
 			if (! firstNeighbour.isPresent()) {
-				return new ArrayList<>(); // as in, you're going down, because game over
+				return new ArrayList<>(Arrays.asList(Direction.DOWN)); // as in, you're going down, because game over
 			} else {
 				search = Collections.singletonList(new Node(firstNeighbour.get()));
 			}
@@ -281,11 +306,7 @@ enum Pathfinding implements Option {
 	
 	
 	private int distanceFromSnakeTail(Coordinate node, List<Coordinate> snake) {
-		if (snake.contains(node)) {
-			return snake.size() - snake.indexOf(node); 
-		} else {
-			return 999;
-		}
+		return snake.size() - snake.indexOf(node); 
 	}
 	
 	
@@ -296,11 +317,20 @@ enum Pathfinding implements Option {
 	
 	
 	private List<Node> constructPath(Node node) {
-	  LinkedList<Node> path = new LinkedList<>();
-	  while (node.pathParent != null) {
-	    path.addFirst(node);
-	    node = node.pathParent;
-	  }
-	  return path;
+		LinkedList<Node> path = new LinkedList<>();
+		while (node.pathParent != null) {
+			path.addFirst(node);
+			node = node.pathParent;
+		}
+		return path;
+	}
+
+	public static Optional<Pathfinding> forKey(int keyCode) {
+		for (Pathfinding pathfinding : values()) {
+			if (pathfinding.matchingKey() == keyCode) {
+				return Optional.of(pathfinding);
+			}
+		}
+		return Optional.empty();
 	}
 }

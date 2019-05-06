@@ -11,7 +11,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class View {
+import javax.swing.JPanel;
+
+@SuppressWarnings("serial")
+public class View extends JPanel {
 
 	private Dimension boardDimensions;
 	private final int DOT_SIZE = 10;
@@ -21,6 +24,12 @@ public class View {
 	private Color currentFoodColour = defaultFoodColour;
 	private List<Color> snakeColors = new ArrayList<>();
 	private boolean colourfulMode = false;
+	
+	private Board board;
+	
+	void setBoard(Board board) {
+		this.board = board;
+	}
 	
 	public void init(int startingSnakeLength, int width, int height) {
 		boardDimensions = new Dimension(width * DOT_SIZE, height * DOT_SIZE);
@@ -32,6 +41,13 @@ public class View {
 	
 	public Dimension getPreferredSize() {
 		return boardDimensions;
+	}
+	
+	@Override
+	public void paintComponent(Graphics g) {
+		super.paintComponent(g);
+		// TODO
+		doDrawing(g, board.getGameState(), board.getFoodCoordinate(), board.getSnake(), board.getStates());
 	}
 	
 	public void doDrawing(
