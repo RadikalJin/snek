@@ -164,7 +164,7 @@ class Board {
 	
 	
 	public void directionPressed(Direction direction) {
-		setCurrentDirectionIfNotAlready(Direction.DOWN);
+		setCurrentDirectionIfNotAlready(direction);
 	}
 	
 	private void setCurrentDirectionIfNotAlready(Direction direction) {

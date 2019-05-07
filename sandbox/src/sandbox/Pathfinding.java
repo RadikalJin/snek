@@ -167,15 +167,42 @@ enum Pathfinding implements Option {
 
 		@Override
 		List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height) {
-			Node goalNode = new Node(new Coordinate(1000, 1000));
-			List<Node> search = super.search(new Node(snake.get(0)), goalNode, snake, new LinkedList<Node>(), width, height);
-			List<Node> path = super.constructPath(search.get(0));
+			List<Direction> path = new ArrayList<>();
 			
-			List<Direction> directions = super.buildDirectionsFromPath(snake.get(0), path);
-			return directions;
+			if (snake.get(0).x == width - 1) {
+				path.add(Direction.DOWN);
+				path.addAll(super.returnXManyOfDirection(Direction.LEFT, width - 1));
+				path.addAll(super.returnXManyOfDirection(Direction.UP, height - 1));
+				path.add(Direction.RIGHT);
+			} else if (snake.get(0).y < height - 2) {
+				path.add(Direction.DOWN);
+			} else {
+				path.add(Direction.RIGHT);
+				
+				path.addAll(super.returnXManyOfDirection(Direction.UP, height-2));
+				
+				path.add(Direction.RIGHT);
+				
+				path.addAll(super.returnXManyOfDirection(Direction.DOWN, height-2));
+			}
+//			Node goalNode = new Node(new Coordinate(1000, 1000));
+//			List<Node> search = super.search(new Node(snake.get(0)), goalNode, snake, new LinkedList<Node>(), width, height);
+//			List<Node> path = super.constructPath(search.get(0));
+//			
+//			List<Direction> directions = super.buildDirectionsFromPath(snake.get(0), path);
+//			return directions;
+			return path;
 		}
 		
 	};
+	
+	private List<Direction> returnXManyOfDirection(Direction direction, int number) {
+		List<Direction> directions = new ArrayList<>();
+		for (int i = 0; i < number; i++) {
+			directions.add(direction);
+		}
+		return directions;
+	}
 	
 
 	abstract List<Direction> find(List<Coordinate> snake, Coordinate foodCoordinate, int width, int height);
@@ -228,7 +255,6 @@ enum Pathfinding implements Option {
 		  	break;
 		  case BFS: 
 		  case BFS_MANHATTAN: 
-		  case LONGEST_PATH:
 		  default:
 		  	node = (Node)toVisit.removeFirst();
 		  	break;
@@ -253,13 +279,7 @@ enum Pathfinding implements Option {
 	    }
 	  }
 	  
-	  // no path found
-	  
-	  if (this.equals(LONGEST_PATH)) {
-		  Collections.sort(visited, Node.compareByDepth);
-		  return new ArrayList<Node>(Arrays.asList(visited.getFirst()));
-	  }
-	  
+	  // no path found	  
 	  return null;
 	}
 	
